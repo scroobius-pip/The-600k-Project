@@ -45,6 +45,7 @@ def section_image_fun(image: Image.Image, size=5):
 
 def serialize_cache(neighbour_cache, neighbours_cache):
     try:
+        print('serializing cache')
         print(f'neighbour_contains {len(neighbour_cache)}')
         print(f'neighbours_contains {len(neighbours_cache)}')
         compressed_pickle('cache', (neighbour_cache, neighbours_cache))
@@ -52,7 +53,7 @@ def serialize_cache(neighbour_cache, neighbours_cache):
         # compressed_pickle('neighbours_cache', neighbours_cache)
         return True
     except:
-        print('failed to serialize cache')
+        logging.error('failed to serialize cache')
         return False
 
 
@@ -60,7 +61,7 @@ def deserialize_cache():
     try:
         return decompress_pickle('cache')
     except:
-        print('failed to deserialize cache')
+        logging.error('failed to deserialize cache')
         return ({}, {})
 
 
@@ -78,7 +79,7 @@ def update_new_image(sectioned_image, initial_tree, new_image, userimages_hash, 
     section_image = sectioned_image[x][y]
     section_hash = imagehash.colorhash(section_image)
     section_hash_str = str(section_hash)
-
+    # logging.info(section_hash_str)
     neighbour = None
 
     if section_hash_str in neighbour_cache:
@@ -86,6 +87,7 @@ def update_new_image(sectioned_image, initial_tree, new_image, userimages_hash, 
     else:
         neighbour = initial_tree.get_nearest_neighbor(section_hash)
         neighbour_cache[section_hash_str] = neighbour
+        # logging.info(f'cache size {len(neighbour_cache)}')
 
     (_, closest_hash) = neighbour
     closest_hash_str = str(closest_hash)
@@ -99,7 +101,7 @@ def update_new_image_neighbours(sectioned_image, initial_tree, new_image, hash_c
     section_hash = imagehash.colorhash(section_image)
 
     section_hash_str = str(section_hash)
-
+    # logging.info(section_hash_str)
     neighbours = None
 
     if section_hash_str in neighbours_cache:
@@ -109,7 +111,6 @@ def update_new_image_neighbours(sectioned_image, initial_tree, new_image, hash_c
             section_hash, neighbour_count)
         neighbours_cache[section_hash_str] = neighbours
 
-    # sorted_neighbours = sorted(neighbours, key=lambda tup: tup[0])
     for neighbour in neighbours:
         (_, closest_hash) = neighbour
         closest_hash_str = str(closest_hash)
@@ -118,10 +119,11 @@ def update_new_image_neighbours(sectioned_image, initial_tree, new_image, hash_c
                 continue
 
         (closest_image, _) = userimages_hash[closest_hash_str]
-        hash_counter[closest_hash_str] = hash_counter.get(
-            closest_hash_str, 0) + 1
         new_image.paste(
             closest_image, (y*closest_image.height, x*closest_image.width))
+        hash_counter[closest_hash_str] = hash_counter.get(
+            closest_hash_str, 0) + 1
+
         break
 
 
@@ -141,7 +143,7 @@ def create_collage(scale, host_img, job_dict, initial_tree, userimages_hash):
     new_image = Image.new(
         "RGB", (len(sectioned_image[0])*50, len(sectioned_image)*50))
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1000) as executor:
         if no_repeat is True:
             hash_counter = {}
             for x in range(len(sectioned_image)):
@@ -154,6 +156,8 @@ def create_collage(scale, host_img, job_dict, initial_tree, userimages_hash):
         else:
             for x in range(len(sectioned_image)):
                 for y in range(len(sectioned_image[x])):
+                    # update_new_image(sectioned_image, initial_tree,
+                    #                  new_image, userimages_hash, x, y)
                     executor.submit(update_new_image, sectioned_image,
                                     initial_tree, new_image, userimages_hash, x, y)
 
@@ -191,25 +195,51 @@ def create_job(job_dict, initial_tree, userimages_hash):
 #
 jobs = [
 
-  
-    # {
-    #     "no_repeat": True,
-    #     "max_repeat": 10,
-    #     "neighbour_count": 1000,
-    #     "thread_count": 2,
-    #     "name": "lain",
-    #     "input_file": "lain.jpg",
-    #     "output_name": "lain",
+    {
+        "no_repeat": True,
+        "max_repeat": 5,
+        "neighbour_count": 500,
+        "thread_count": 1,
+        "name": "monalisa",
+        "input_file": "monalisa.jpg",
+        "output_name": "monalisa",
 
-    #     "scales": [
+        "scales": [
 
-    #         {"section_scale": 1, "image_scale": 1},
-    #         {"section_scale": 2, "image_scale": 1},
-    #         # {"section_scale": 2, "image_scale": 2},
+                # {"section_scale": 2, "image_scale": 4},
+                {"section_scale": 4, "image_scale": 2},
+                {"section_scale": 2, "image_scale": 2},
+                # {"section_scale": 4, "image_scale": 4},
+                # {"section_scale": 1, "image_scale": 2},
 
-    #     ]
-    # },
-   
+
+
+        ]
+    },
+    {
+        "no_repeat": True,
+        "max_repeat": 1,
+        "neighbour_count": 2000,
+        "thread_count": 1,
+        "name": "monalisa",
+        "input_file": "monalisa.jpg",
+        "output_name": "monalisa",
+
+        "scales": [
+
+                # {"section_scale": 2, "image_scale": 4},
+                {"section_scale": 4, "image_scale": 2},
+                {"section_scale": 2, "image_scale": 2},
+                # {"section_scale": 4, "image_scale": 4},
+                # {"section_scale": 1, "image_scale": 2},
+
+
+
+        ]
+    },
+
+
+
 
 ]
 
@@ -217,168 +247,28 @@ big_jobs = [
 
 
 
-    # {
-    #     "no_repeat": True,
-    #     "max_repeat": 100,
-    #     "neighbour_count": 2000,
-    #     "thread_count": 1,
-    #     "name": "host1",
-    #     "input_file": "host1.jpg",
-    #     "output_name": "collage1_v2",
 
-    #     "scales": [
 
-    #         {"section_scale": 1, "image_scale": 2},
-    #         {"section_scale": 1, "image_scale": 1},
-
-    #         {"section_scale": 2, "image_scale": 2},
-    #     ]
-    # },
     {
-        "no_repeat": False,
-        # "max_repeat": 100,
-        # "neighbour_count": 2000,
+        "no_repeat": True,
+        "max_repeat": 100,
+        "neighbour_count": 5000,
         "thread_count": 1,
-        "name": "host1",
-        "input_file": "host1.jpg",
-        "output_name": "collage1_v3",
+        "name": "evangelion",
+        "input_file": "evangelion.png",
+        "output_name": "evangelion",
 
         "scales": [
 
-            {"section_scale": 1, "image_scale": 1},
 
             # {"section_scale": 2, "image_scale": 2},
+            {"section_scale": 4, "image_scale": 2},
+            # {"section_scale": 4, "image_scale": 4},
+
+
         ]
     },
-    # {
-    #     "no_repeat": True,
-    #     "max_repeat": 100,
-    #     "neighbour_count": 2000,
-    #     "thread_count": 1,
-    #     "name": "flowers",
-    #     "input_file": "flowers.jpg",
-    #     "output_name": "flowers",
 
-    #     "scales": [
-
-    #         {"section_scale": 1, "image_scale": 2},
-
-    #         {"section_scale": 2, "image_scale": 2},
-    #     ]
-    # },
-    # {
-    #     "no_repeat": False,
-    #     # "max_repeat": 100,
-    #     # "neighbour_count": 2000,
-    #     "thread_count": 1,
-    #     "name": "flowers",
-    #     "input_file": "flowers.jpg",
-    #     "output_name": "flowers",
-
-    #     "scales": [
-
-    #         {"section_scale": 1, "image_scale": 2},
-
-    #         {"section_scale": 2, "image_scale": 2},
-    #     ]
-    # },
-    # {
-    #     "no_repeat": True,
-    #     "max_repeat": 100,
-    #     "neighbour_count": 2000,
-    #     "thread_count": 1,
-    #     "name": "host2",
-    #     "input_file": "host2.jpg",
-    #     "output_name": "collage2_v2",
-
-    #     "scales": [
-
-    #         {"section_scale": 1, "image_scale": 2},
-
-    #         {"section_scale": 2, "image_scale": 2},
-    #     ]
-    # },
-    # {
-    #     "no_repeat": True,
-    #     "max_repeat": 100,
-    #     "neighbour_count": 2000,
-    #     "thread_count": 1,
-    #     "name": "pattern",
-    #     "input_file": "pattern.jpg",
-    #     "output_name": "pattern",
-
-    #     "scales": [
-
-    #         {"section_scale": 1, "image_scale": 2},
-
-    #         {"section_scale": 2, "image_scale": 2},
-    #     ]
-    # },
-    # {
-    #     "no_repeat": True,
-    #     "max_repeat": 100,
-    #     "neighbour_count": 2000,
-    #     "thread_count": 1,
-    #     "name": "woman",
-    #     "input_file": "woman.jpg",
-    #     "output_name": "woman",
-
-    #     "scales": [
-
-    #         {"section_scale": 1, "image_scale": 2},
-    #         {"section_scale": 1, "image_scale": 1},
-    #         {"section_scale": 2, "image_scale": 2},
-
-    #     ]
-    # },
-    # {
-    #     "no_repeat": True,
-    #     "max_repeat": 100,
-    #     "neighbour_count": 2000,
-    #     "thread_count": 1,
-    #     "name": "space",
-    #     "input_file": "space.jpg",
-    #     "output_name": "space",
-
-    #     "scales": [
-
-    #         {"section_scale": 1, "image_scale": 2},
-    #         {"section_scale": 1, "image_scale": 4},
-    #         {"section_scale": 1, "image_scale": 1},
-
-    #     ]
-    # },
-    # {
-    #     "no_repeat": True,
-    #     "max_repeat": 100,
-    #     "neighbour_count": 2000,
-    #     "thread_count": 1,
-    #     "name": "evangelion",
-    #     "input_file": "evangelion.png",
-    #     "output_name": "evangelion",
-
-    #     "scales": [
-
-    #         {"section_scale": 1, "image_scale": 2},
-
-    #     ]
-    # },
-    # {
-    #     "no_repeat": False,
-    #     # "max_repeat": 100,
-    #     # "neighbour_count": 2000,
-    #     "thread_count": 1,
-    #     "name": "evangelion",
-    #     "input_file": "evangelion.png",
-    #     "output_name": "evangelion",
-
-    #     "scales": [
-
-    #         {"section_scale": 1, "image_scale": 2},
-    #         {"section_scale": 2, "image_scale": 2},
-
-    #     ]
-    # },
 
 
 
@@ -387,7 +277,7 @@ big_jobs = [
 
 tic = time.perf_counter()
 
-print('deserializing userimage_hash and cache files')
+logging.info('deserializing userimage_hash and cache files')
 # userimages_hash = decompress_pickle('userimages_hash')
 userimages_hash = {}
 redis_store = RedisStore(1)
@@ -400,22 +290,22 @@ cache_result = deserialize_cache()
 neighbour_cache = cache_result[0]
 neighbours_cache = cache_result[1]
 set_interval(lambda: serialize_cache(neighbour_cache, neighbours_cache), 60)
-print(f'userimages_hash size: {len(userimages_hash)}')
-print(f'neighbour_cache size: {len(neighbour_cache)}')
-print(f'neighbours_cache size: {len(neighbours_cache)}')
+logging.info(f'userimages_hash size: {len(userimages_hash)}')
+logging.info(f'neighbour_cache size: {len(neighbour_cache)}')
+logging.info(f'neighbours_cache size: {len(neighbours_cache)}')
 
-print(f"deserialized in {time.perf_counter() - tic:0.4f} seconds ")
+logging.info(f"deserialized in {time.perf_counter() - tic:0.4f} seconds ")
 
 initial_tree = vptree.VPTree(
     list(map(lambda tu: tu[1], userimages_hash.values())), img_hash_distance)
 
-print(f"starting jobs")
+logging.info(f"starting jobs")
 
 tic2 = time.perf_counter()
 with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
     for job in jobs:
         executor.submit(create_job, job, initial_tree, userimages_hash)
-print(
+logging.info(
     f"finished {len(jobs)} small jobs in {time.perf_counter() - tic2:0.4f} seconds ")
 
 tic3 = time.perf_counter()
@@ -425,9 +315,9 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         create_job(job, initial_tree, userimages_hash)
 
 
-print('serializing caches')
+logging.info('serializing caches')
 serialize_cache(neighbour_cache, neighbours_cache)
 # print('serializing caches')
 
-print(
+logging.info(
     f"finished {len(big_jobs)} big jobs in {time.perf_counter() - tic3:0.4f} seconds ")
